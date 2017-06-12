@@ -1,0 +1,112 @@
+Full Stack Foundations
+
+Lesson 2: Problem Set 1
+
+1. Intro to Problem Set 1
+This is optional
+In order to complete the exercises in this problem set, you will need to rely on the SQLAlchemy documentation and Python documentation heavily. You are free to use any other outside resources like StackOverflow or Flask blogs but we would like you to get into the habit of going to the original documentation before looking for tutorials.
+
+2. Puppy Shelters
+For this exercise you will be the database architect for the Uda County District of Animal Shelters. The shelters need a database for adopting puppies.
+
+3. Exercise 1 Setting up the Database
+
+# puppies.py
+
+# Config start - Class definition - Table - Mapper - Config end
+
+# Configuration Section at beginning
+import sys     # manipulates different parts of the run time environment
+
+from sqlalchemy import Column, ForeignKey, Integer, String, Date, Numeric  # import these four classes, handy when writing mapper code
+from sqlalchemy.ext.declarative import declarative_base   # used in configuration and class code
+from sqlalchemy.orm import relationship         # imported in order to create foreign key relationships, used when writing mapper code
+from sqlalchemy import create_engine      		# used in configuration code at the end of the file
+
+Base = declarative_base()            			# helps when dealing with SQLAlchemy
+
+class Shelter(Base):							# Class definition
+
+    __tablename__ = 'shelter'					# Table
+    id = Column(Integer, primary_key = True)
+    name = Column(String(80),nullable = False)
+    address = Column(String(250))
+    city = Column(String(80))
+    state = Column(String(20))
+    zipCode = Column(String(10))
+    website = Column(String)                    # no numbers here 
+
+
+class Puppy(Base):								# Class definition
+    __tablename__ = 'puppy'						# Table
+    id = Column(Integer, primary_key = True)             # id is still required for Puppy class
+    name = Column(String(80),nullable = False)
+    gender = Column(String(10),nullable = False)
+    dateOfBirth = Column(Date)
+    weight = Column(Numeric(10))
+    shelter_id = Column(Integer, ForeignKey('shelter.id'))
+    shelter = relationship(Shelter)                       # don't forget this row also, note it says 'shelter = ...', not 'puppies =' 
+    picture = Column(String)                    # no numbers here
+
+	
+# Configuration Section at end
+########### insert at end of file #########
+engine = create_engine(                  # create instance of create_engine class and point 
+	'sqlite:///puppyshelter.db')         # and point to the DB we will use
+
+Base.metadata.create_all(engine)    # this goes into the DB and creates new tables that we are going to use
+
+==========================
+
+vagrant@vagrant:/vagrant/ud088FSF/PS1$ python puppies.py
+vagrant@vagrant:/vagrant/ud088FSF/PS1$ python puppypopulator.py
+
+==========================
+
+4. Exercise 2 Queries
+
+# puppy_query.py
+
+from sqlalchemy import create_engine
+from sqlalchemy import func
+from sqlalchemy.orm import sessionmaker      
+	
+from puppies import Base, Shelter, Puppy     # note 'puppies' & 'Base'
+import datetime
+
+engine = create_engine('sqlite:///puppyshelter.db')
+Base.metadata.bind = engine   				# note no create here, only a metadata.bind 
+DBSession = sessionmaker(bind=engine)
+session = DBSession()
+
+=================
+
+1. Query all of the puppies and return the results in ascending alphabetical order
+
+>>>  puppies = session.query(Puppy).order_by(Puppy.name).all()
+>>> for puppy in puppies:
+...    print puppy.name
+
+
+2. Query all of the puppies that are less than 6 months old organized by the youngest first
+
+>>>   puppies = session.query(Puppy).filter(Puppy.dateOfBirth>'2017-01-01').order_by(Puppy.dateOfBirth.desc()).all()
+>>> for puppy in puppies:
+...    print puppy.name, puppy.dateOfBirth
+
+
+3. Query all puppies by ascending weight
+>>> puppies = session.query(Puppy).order_by(Puppy.weight).all()
+>>> for puppy in puppies:
+...    print puppy.name, puppy.weight
+
+
+4. Query all puppies grouped by the shelter in which they are staying
+>>> puppies = session.query(Puppy).order_by(Puppy.shelter_id).all()
+>>> for puppy in puppies:
+...     print puppy.name, puppy.shelter_id
+...
+
+
+
+
