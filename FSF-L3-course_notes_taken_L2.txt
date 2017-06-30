@@ -1,0 +1,226 @@
+Full Stack Foundations
+
+Lesson 3: Making a Web Server
+
+1. Lesson 2 Introduction
+
+2. Review of Clients, Servers and Protocols
+Transmission Control Protocol (TCP) - packets are sent with occasional packet resent
+Internet Protocol (IP) - dns required, OS's uses ports as only one IP address, localhost=127.0.0.1
+Hyper Text Transfer Protocol (HTTP)
+
+3. HTTP and Response Codes
+There are nine 'verbs'
+GET (safe method) 
+POST (used for modifying)
+Status Codes are sent back from the server to the client, e.g. 200, 301, 404
+200 : Successful GET
+301 : Successful POST
+404 : File not found
+
+4. Building a Server with HTTPBaseServer
+20.18. BaseHTTPServer — Basic HTTP server : https://docs.python.org/2/library/basehttpserver.html
+webserver will have two sections: 
+	handler	-	indicates what code to execute based on what HTTP requests are sent to the server. 
+	main() 	-	instantiate server and specify which port it will listen on.
+see below for webserver.py
+	
+5. Quiz: Running a Web Server
+python webserve.py
+127.0.0.1:8080/hello
+
+6. Port Forwarding
+VagrantFile contains the following to allow port forwarding:
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-16.04-i386"
+  config.vm.network "forwarded_port", guest: 8000, host: 8000, host_ip: "127.0.0.1"
+  config.vm.network "forwarded_port", guest: 8080, host: 8080, host_ip: "127.0.0.1"
+  config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: "127.0.0.1"
+Port forwarding allows us to open pages in our browser from the web server from our virtual machine as if they were being run locally. 
+
+7. Responding to Multiple GET Requests
+See " if self.path.endswith("/hola"): " section in webserver.py below
+
+8. Quiz: Hola Server
+	
+9. Adding POST to web server
+POST means data to be submitted
+
+10. Quiz: Running the POST webserver
+
+11. Adding CRUD to our Website
+Database  --CRUD--  Server  --HTTP--  Client
+Objectives: 
+	a. webpage opens with a list out of all restaurants
+	b. after each restaurant there ought to be edit & delete links
+	c. at the end of the page there ought be a create new restaurant link
+	d. renaming a restaurant ought to be possible
+	e. deleting restaurant ought to be possible
+
+12. Add CRUD functionality to your webserver
+See 11. above
+
+13. Adding CRUD hints
+	a. you've already seen all the necessary code
+	b. import necessary modules
+	c. reconstruct do_GET and do_POST
+	d. use print statements to debug
+	e. view page source in browser
+
+14. Quiz: CRUD hints	
+See 13. above
+
+15 - 19 deal with Objectives a - e in 11.
+This new webserver.py is contained in separate folder.
+
+20. Wrap up
+
+============================================
+webserver.py
+
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+
+class WebServerHandler(BaseHTTPRequestHandler):    # notice it is based on the imported BaseHTTPRequestHandler
+
+    def do_GET(self):
+        if self.path.endswith("/hello"):					# address ends in /hello
+            self.send_response(200)							
+            self.send_header('Content-type', 'text/html')	#sending text back
+            self.end_headers()								#send a blank line
+            message = ""
+            message += "<html><body>Hello!</body></html>"
+            self.wfile.write(message)
+            print message
+			
+		if self.path.endswith("/hola"):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            message = ""
+            message += "<html><body> &#161 Hola ! </body></html>"
+            self.wfile.write(message)
+            print message
+			
+        else:
+            self.send_error(404, 'File Not Found: %s' % self.path)	# used to notify myself of errors
+
+
+def main():
+    try:
+        port = 8080
+        server = HTTPServer(('', port), WebServerHandler)    # notice IP address is empty
+        print "Web Server running on port %s" % port
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print " ^C entered, stopping web server...."
+        server.socket.close()
+
+if __name__ == '__main__':
+    main()
+
+	
+============================================
+webserver2.py with POST
+
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+import cgi
+
+
+class webServerHandler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        try:
+            if self.path.endswith("/hello"):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                output = ""
+                output += "<html><body>"
+                output += "<h1>Hello!</h1>"
+                output += '''<form method='POST' enctype='multipart/form-data' action='/hello'><h2>What would you like me to say?</h2><input name="message" type="text" ><input type="submit" value="Submit"> </form>'''
+                output += "</body></html>"
+                self.wfile.write(output)
+                print output
+                return
+
+            if self.path.endswith("/hola"):
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                output = ""
+                output += "<html><body>"
+                output += "<h1>&#161 Hola !</h1>"
+                output += '''<form method='POST' enctype='multipart/form-data' action='/hello'><h2>What would you like me to say?</h2><input name="message" type="text" ><input type="submit" value="Submit"> </form>'''
+                output += "</body></html>"
+                self.wfile.write(output)
+                print output
+                return
+
+        except IOError:
+            self.send_error(404, 'File Not Found: %s' % self.path)
+
+    def do_POST(self):
+        try:
+            self.send_response(301)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            ctype, pdict = cgi.parse_header(
+                self.headers.getheader('content-type'))
+            if ctype == 'multipart/form-data':
+                fields = cgi.parse_multipart(self.rfile, pdict)
+                messagecontent = fields.get('message')
+            output = ""
+            output += "<html><body>"
+            output += " <h2> Okay, how about this: </h2>"
+            output += "<h1> %s </h1>" % messagecontent[0]
+            output += '''<form method='POST' enctype='multipart/form-data' action='/hello'><h2>What would you like me to say?</h2><input name="message" type="text" ><input type="submit" value="Submit"> </form>'''
+            output += "</body></html>"
+            self.wfile.write(output)
+            print output
+        except:
+            pass
+
+
+def main():
+    try:
+        port = 8080
+        server = HTTPServer(('', port), webServerHandler)
+        print "Web Server running on port %s" % port
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print " ^C entered, stopping web server...."
+        server.socket.close()
+
+if __name__ == '__main__':
+    main()
+	
+=======================================================
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from database_setup import Base, Restaurant, MenuItem
+engine = create_engine('sqlite:///restaurantmenu.db')       # let's program know what database we want to communicate with
+Base.metadata.bind = engine                                # binds the engine to the base class, makes connections between class definitions and corresponding tables
+DBSession = sessionmaker(bind = engine)                     # creates a communication path between engine and code
+session = DBSession()                                       # an interface for executing commands, commands are written here in this staging zone and committed later
+restaurants = session.query(Restaurant).all()
+for restaurant in restaurants:
+   print restaurant.name
+
+Urban Burger
+Super Stir Fry
+Panda Garden
+Thyme for That Vegetarian Cuisine
+Tony's Bistro
+Andala's
+Auntie Ann's Diner'
+Cocina Y Amor
+State Bird Provisions
+
+
+	
+>>> rest = session.query(Restaurant).filter_by(id=11).one()
+>>> print rest.name
+Sizzling Sausages
+>>> rest.name='Sizzling Rachers'
+>>> session.add(rest)
+>>> session.commit()
